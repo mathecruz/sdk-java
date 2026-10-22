@@ -38,8 +38,7 @@ class CompositeExpressionFactoryTest {
     WorkflowPredicate unexpected = (w, t, m) -> false;
     ExpressionFactory defaultPriority =
         new ExprFactory(ExpressionFactory.DEFAULT_PRIORITY, unexpected);
-    ExpressionFactory shouldAlwaysWin =
-        new ExprFactory(ExpressionFactory.MAX_PRIORITY, expected);
+    ExpressionFactory shouldAlwaysWin = new ExprFactory(ExpressionFactory.MAX_PRIORITY, expected);
 
     ExpressionFactory composite =
         new CompositeExpressionFactory(List.of(defaultPriority, shouldAlwaysWin));
@@ -49,57 +48,104 @@ class CompositeExpressionFactoryTest {
     assertThat(composite.buildPredicate(DESC)).isSameAs(expected);
   }
 
-  private record ExprFactory(int priority, WorkflowPredicate predicate) implements ExpressionFactory {
+  @Test
+  void factoryDeclaringMinPriorityLosesToDefaultPriority() {
+    WorkflowPredicate expected = (w, t, m) -> true;
+    WorkflowPredicate unexpected = (w, t, m) -> false;
+    ExpressionFactory defaultPriority =
+        new ExprFactory(ExpressionFactory.DEFAULT_PRIORITY, expected);
+    ExpressionFactory shouldAlwaysLose =
+        new ExprFactory(ExpressionFactory.MIN_PRIORITY, unexpected);
+
+    ExpressionFactory composite =
+        new CompositeExpressionFactory(List.of(defaultPriority, shouldAlwaysLose));
+
+    assertThat(composite.buildPredicate(DESC)).isSameAs(expected);
+  }
+
+  @Test
+  void factoryDeclaringMaxPriorityWinsOverFactoryDeclaringMinPriority() {
+    WorkflowPredicate expected = (w, t, m) -> true;
+    WorkflowPredicate unexpected = (w, t, m) -> false;
+    ExpressionFactory shouldAlwaysLose =
+        new ExprFactory(ExpressionFactory.MIN_PRIORITY, unexpected);
+    ExpressionFactory shouldAlwaysWin = new ExprFactory(ExpressionFactory.MAX_PRIORITY, expected);
+
+    ExpressionFactory composite =
+        new CompositeExpressionFactory(List.of(shouldAlwaysLose, shouldAlwaysWin));
+
+    assertThat(composite.buildPredicate(DESC)).isSameAs(expected);
+  }
+
+  @Test
+  void factoryDeclaringMaxPriorityWinsAmongSeveralCompetingPriorities() {
+    WorkflowPredicate expected = (w, t, m) -> true;
+    ExpressionFactory shouldAlwaysWin = new ExprFactory(ExpressionFactory.MAX_PRIORITY, expected);
+
+    ExpressionFactory composite =
+        new CompositeExpressionFactory(
+            List.of(
+                new ExprFactory(ExpressionFactory.MIN_PRIORITY, (w, t, m) -> false),
+                new ExprFactory(ExpressionFactory.DEFAULT_PRIORITY, (w, t, m) -> false),
+                new ExprFactory(-1, (w, t, m) -> false),
+                shouldAlwaysWin,
+                new ExprFactory(500, (w, t, m) -> false)));
+
+    assertThat(composite.buildPredicate(DESC)).isSameAs(expected);
+  }
+
+  private record ExprFactory(int priority, WorkflowPredicate predicate)
+      implements ExpressionFactory {
 
     @Override
-      public int priority(ExpressionDescriptor desc) {
-        return priority;
-      }
-
-      @Override
-      public WorkflowPredicate buildPredicate(ExpressionDescriptor desc) {
-        return predicate;
-      }
-
-      @Override
-      public WorkflowValueResolver<String> resolveString(ExpressionDescriptor desc) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public WorkflowValueResolver<Object> resolveValue(ExpressionDescriptor desc) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public WorkflowValueResolver<OffsetDateTime> resolveDate(ExpressionDescriptor desc) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public WorkflowValueResolver<CloudEventData> resolveCE(ExpressionDescriptor desc) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public WorkflowValueResolver<Map<String, Object>> resolveMap(ExpressionDescriptor desc) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public WorkflowValueResolver<Collection<?>> resolveCollection(ExpressionDescriptor desc) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public WorkflowFilter buildFilter(
-              ExpressionDescriptor desc, WorkflowModelFactory modelFactory) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public Optional<WorkflowPredicate> buildIfFilter(TaskBase task) {
-        throw new UnsupportedOperationException();
-      }
+    public int priority(ExpressionDescriptor desc) {
+      return priority;
     }
+
+    @Override
+    public WorkflowPredicate buildPredicate(ExpressionDescriptor desc) {
+      return predicate;
+    }
+
+    @Override
+    public WorkflowValueResolver<String> resolveString(ExpressionDescriptor desc) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public WorkflowValueResolver<Object> resolveValue(ExpressionDescriptor desc) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public WorkflowValueResolver<OffsetDateTime> resolveDate(ExpressionDescriptor desc) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public WorkflowValueResolver<CloudEventData> resolveCE(ExpressionDescriptor desc) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public WorkflowValueResolver<Map<String, Object>> resolveMap(ExpressionDescriptor desc) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public WorkflowValueResolver<Collection<?>> resolveCollection(ExpressionDescriptor desc) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public WorkflowFilter buildFilter(
+        ExpressionDescriptor desc, WorkflowModelFactory modelFactory) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<WorkflowPredicate> buildIfFilter(TaskBase task) {
+      throw new UnsupportedOperationException();
+    }
+  }
 }

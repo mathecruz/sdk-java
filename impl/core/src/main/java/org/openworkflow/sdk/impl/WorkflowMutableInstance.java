@@ -91,31 +91,38 @@ public class WorkflowMutableInstance implements WorkflowInstance {
 
   protected final CompletableFuture<WorkflowModel> startExecution(
       Supplier<CompletableFuture<?>> runnable) {
-    CompletableFuture<WorkflowModel> future = futureRef.get();
-    if (future == null) {
-      future =
-          runnable
-              .get()
-              .thenCompose(
-                  v ->
-                      TaskExecutorHelper.processTaskList(
-                              workflowContext.definition().startTask(),
-                              workflowContext,
-                              Optional.empty(),
-                              workflowContext
-                                  .definition()
-                                  .inputFilter()
-                                  .map(f -> f.apply(workflowContext, null, input))
-                                  .orElse(input))
-                          .whenComplete(this::setCompleteDate)
-                          .thenApply(this::filterAndValidate)
-                          .thenCompose(this::publishCompletionEvents)
-                          .exceptionallyCompose(this::handleException))
-              .handle(this::cleanUpWaitingListeners)
-              .thenCompose(Function.identity());
-      futureRef.set(future);
+    CompletableFuture<WorkflowModel> placeholder = new CompletableFuture<>();
+    if (!futureRef.compareAndSet(null, placeholder)) {
+      return futureRef.get();
     }
-    return future;
+    runnable
+        .get()
+        .thenCompose(
+            v ->
+                TaskExecutorHelper.processTaskList(
+                        workflowContext.definition().startTask(),
+                        workflowContext,
+                        Optional.empty(),
+                        workflowContext
+                            .definition()
+                            .inputFilter()
+                            .map(f -> f.apply(workflowContext, null, input))
+                            .orElse(input))
+                    .whenComplete(this::setCompleteDate)
+                    .thenApply(this::filterAndValidate)
+                    .thenCompose(this::publishCompletionEvents)
+                    .exceptionallyCompose(this::handleException))
+        .handle(this::cleanUpWaitingListeners)
+        .thenCompose(Function.identity())
+        .whenComplete(
+            (result, ex) -> {
+              if (ex != null) {
+                placeholder.completeExceptionally(ex);
+              } else {
+                placeholder.complete(result);
+              }
+            });
+    return placeholder;
   }
 
   private CompletableFuture<WorkflowModel> publishCompletionEvents(WorkflowModel model) {

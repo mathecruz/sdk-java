@@ -51,7 +51,7 @@ public class WorkflowMutableInstance implements WorkflowInstance {
   protected final WorkflowContext workflowContext;
   protected Instant startedAt;
 
-  protected CompletableFuture<WorkflowModel> future;
+  protected volatile CompletableFuture<WorkflowModel> future;
   protected Instant completedAt;
 
   protected Map<String, Object> additionalObjects = new ConcurrentHashMap<>();
